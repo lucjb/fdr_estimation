@@ -8,6 +8,9 @@ from sklearn.metrics import mean_squared_error
 
 mean_effect_size = 0.05
 var_effect_size = 0.05
+es = np.random.normal(mean_effect_size, var_effect_size, 1000)
+plt.hist(es, bins=20)
+plt.show()	
 
 alpha = 0.1
 power = 0.8
@@ -17,29 +20,28 @@ est_fdrs, actual_fdrs = [],[]
 powers = []
 fcrs = []
 for e in range(100):
-	p_effect = np.random.beta(10, 90, 1)
+	p_effect = np.random.beta(10, 90, 1)[0]
 	conc = 0.
 	k = 10000
 	fc, fi, tc, ti = 0, 0, 0, 0
 	for i in range(k):
 		aa = True
 		if random.random()<p_effect:
-			es = np.random.normal(mean_effect_size, var_effect_size, 1)	
+			es = np.random.normal(mean_effect_size, var_effect_size, 1)[0]
 			aa = False
 		else:
 			es = 0
 
 	
 		a = 12
-		base_conversion = np.random.beta(a, 100-a, 1)
-
+		base_conversion = np.random.beta(a, 100-a, 1)[0]
 		variant_conversion = base_conversion*(1+es)
 
 		es = (variant_conversion-base_conversion)/np.sqrt((base_conversion*(1-base_conversion) + variant_conversion*(1-variant_conversion))/2)
-		es2 = sm.stats.proportion_effectsize(variant_conversion, base_conversion)
-		es = np.abs(es)
+		es2 = sm.stats.proportion_effectsize(base_conversion*(1+np.random.normal(mean_effect_size, var_effect_size, 1)[0]), base_conversion)
+		es2 = np.abs(es2)
 		if es != 0.:
-			n = TTestIndPower().solve_power(es, power=power, ratio=1, alpha=alpha, alternative='two-sided')
+			n = TTestIndPower().solve_power(es2, power=0.8, ratio=1, alpha=alpha, alternative='two-sided')
 		else:
 			n = 0
 		
