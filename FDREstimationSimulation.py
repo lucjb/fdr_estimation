@@ -7,7 +7,7 @@ from statsmodels.stats.power import TTestIndPower
 from sklearn.metrics import mean_squared_error
 
 mean_effect_size = 0.05
-var_effect_size = 0.05
+var_effect_size = 0.03
 es = np.random.normal(mean_effect_size, var_effect_size, 1000)
 plt.hist(es, bins=20)
 plt.show()	
@@ -16,23 +16,34 @@ alpha = 0.1
 power = 0.8
 x,y=[],[]
 est_fdrs, actual_fdrs = [],[]
+est_fgrs, actual_fgrs = [], []
 
 powers = []
 fcrs = []
+
 for e in range(100):
 	p_effect = np.random.beta(10, 90, 1)[0]
 	conc = 0.
 	k = 10000
 	fc, fi, tc, ti = 0, 0, 0, 0
+	fg, fr, tg, tr = 0, 0, 0, 0
+
 	for i in range(k):
 		aa = True
+		red, green = False, False
 		if random.random()<p_effect:
 			es = np.random.normal(mean_effect_size, var_effect_size, 1)[0]
 			aa = False
 		else:
 			es = 0
 
-	
+		if es > 0:
+			green = True
+			red = False
+		if es < 0:
+			green = False
+			red = True
+
 		a = 12
 		base_conversion = np.random.beta(a, 100-a, 1)[0]
 		variant_conversion = base_conversion*(1+es)
@@ -42,6 +53,7 @@ for e in range(100):
 		es2 = np.abs(es2)
 		if es != 0.:
 			n = TTestIndPower().solve_power(es2, power=0.8, ratio=1, alpha=alpha, alternative='two-sided')
+
 		else:
 			n = 0
 		
@@ -56,11 +68,11 @@ for e in range(100):
 		obs = [[total_bookers_A, no_bookers_A], [total_bookers_B, no_bookers_B]]
 		g, p, dof, expected = chi2_contingency(obs, lambda_="log-likelihood")
 
+
 		conclusive = False
 		if p<alpha:
 			conclusive = True
 			conc+=1.
-
 
 		if aa and conclusive:
 			fc += 1.
@@ -71,6 +83,19 @@ for e in range(100):
 		if not aa and not conclusive:
 			fi += 1.
 		
+		if conclusive:
+			if total_bookers_B>total_bookers_A:	
+				if green:
+					tg += 1.
+				else:
+					fg += 1.
+			
+			if total_bookers_B<total_bookers_A:	
+				if red:
+					tr += 1.
+				else:
+					fr += 1.
+				
 
 	cr = conc/k
 	tcr = (tc+1e-9)/(tc+fi+1e-9)
@@ -78,26 +103,38 @@ for e in range(100):
 	fdr = fc/conc
 	aar = (fc+ti)/k
 	est_aar = (cr-power)/(alpha-power)
-	abr = tc+fi
 	est_abr = 1-est_aar
+	
 
+	
 
-	est_fdr = k*(est_aar*alpha)/conc
+	est_fdr = k*((cr-power)/(alpha-power)*alpha)/conc
 	est_fdrs.append(est_fdr)
 	actual_fdrs.append(fdr)
-
-	print e, 'FDR', fdr, 'EST', est_fdr, fcr, tcr
 	
-	print 'Number of AAs: Actual', fc+ti, 'Estimated', k*(cr-power)/(alpha-power)
+
+	fgr = fg / (tg + fg)
+	gr = (fg+tg)/k	
+	est_fgr = k*((gr-0.88)/(alpha/2-0.88)*alpha/2)/(fg+tg)
+	est_fgrs.append(est_fgr)
+	actual_fgrs.append(fgr)
+
+	print fgr, est_fgr
+	#print e, 'FDR', fdr, 'EST', est_fdr, fcr, tcr
+	
+	#print 'Number of AAs: Actual', fc+ti, 'Estimated', k*(cr-power)/(alpha-power)
 	x.append(fc+ti)
 	y.append(k*(cr-power)/(alpha-power))
 	powers.append(tcr)
 	fcrs.append(fcr)
 
+
 plt.hist(fcrs)
 plt.show()
 plt.hist(powers)
 plt.show()
+
+
 print np.sqrt(mean_squared_error(x, y)), pearsonr(x,y)
 z = np.polyfit(x, y, 1)
 p = np.poly1d(z)
@@ -113,6 +150,17 @@ p = np.poly1d(z)
 plt.scatter(x,y)
 plt.plot(x, p(x))
 plt.show()
+
+
+x = actual_fgrs
+y = est_fgrs
+print np.sqrt(mean_squared_error(x, y)), pearsonr(x,y)
+z = np.polyfit(x, y, 1)
+p = np.poly1d(z)
+plt.scatter(x,y)
+plt.plot(x, p(x))
+plt.show()
+
 
 '''
 5k
